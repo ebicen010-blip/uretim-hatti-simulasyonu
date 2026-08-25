@@ -2,18 +2,27 @@ import streamlit as st
 import simpy
 import random
 import statistics
+import pandas as pd
 
 st.set_page_config(page_title="Uretim Hatti Simulasyonu", layout="centered")
 
 st.title("Üretim Hattı Simülasyonu")
 st.write("Parametreleri soldan değiştir, simülasyonu anında yeniden çalıştır.")
 
-st.sidebar.header("Parametreler")
-tampon_kapasitesi = st.sidebar.slider("Tampon kapasitesi", 1, 15, 5)
-mtbf = st.sidebar.slider("MTBF (dakika)", 20, 200, 60)
-mttr = st.sidebar.slider("MTTR (dakika)", 2, 30, 8)
-varis_araligi = st.sidebar.slider("Ortalama varis araligi (dakika)", 1.0, 10.0, 4.0)
-tekrar_sayisi = st.sidebar.slider("Tekrar sayisi", 1, 20, 5)
+st.sidebar.header("Senaryo A")
+tampon_a = st.sidebar.slider("Tampon kapasitesi (A)", 1, 15, 5, key="tampon_a")
+mtbf_a = st.sidebar.slider("MTBF - dakika (A)", 20, 200, 60, key="mtbf_a")
+mttr_a = st.sidebar.slider("MTTR - dakika (A)", 2, 30, 8, key="mttr_a")
+varis_a = st.sidebar.slider("Ortalama varis araligi (A)", 1.0, 10.0, 4.0, key="varis_a")
+
+st.sidebar.header("Senaryo B")
+tampon_b = st.sidebar.slider("Tampon kapasitesi (B)", 1, 15, 8, key="tampon_b")
+mtbf_b = st.sidebar.slider("MTBF - dakika (B)", 20, 200, 60, key="mtbf_b")
+mttr_b = st.sidebar.slider("MTTR - dakika (B)", 2, 30, 8, key="mttr_b")
+varis_b = st.sidebar.slider("Ortalama varis araligi (B)", 1.0, 10.0, 4.0, key="varis_b")
+
+st.sidebar.header("Genel")
+tekrar_sayisi = st.sidebar.slider("Tekrar sayisi", 1, 20, 5, key="tekrar")
 
 ISLEM_SURELERI = [2.5, 3.0, 4.0, 2.8, 3.2]
 N_ISTASYON = len(ISLEM_SURELERI)
@@ -66,19 +75,41 @@ def simulasyon_calistir(tampon_kapasitesi, mtbf, mttr, varis_araligi, sure=480):
     utilization = [m / sure for m in istasyon_mesgul]
     return throughput, utilization
 
-if st.sidebar.button("Simülasyonu Çalıştır"):
+if st.sidebar.button("Senaryolari Karsilastir"):
     with st.spinner("Simüle ediliyor..."):
-        sonuclar = [simulasyon_calistir(tampon_kapasitesi, mtbf, mttr, varis_araligi) for _ in range(tekrar_sayisi)]
-        throughputlar = [s[0] for s in sonuclar]
-        ortalama = statistics.mean(throughputlar)
-        guven_araligi = 1.96 * statistics.stdev(throughputlar) / (len(throughputlar) ** 0.5) if len(throughputlar) > 1 else 0.0
+        sonuclar_a = [simulasyon_calistir(tampon_a, mtbf_a, mttr_a, varis_a) for _ in range(tekrar_sayisi)]
+        sonuclar_b = [simulasyon_calistir(tampon_b, mtbf_b, mttr_b, varis_b) for _ in range(tekrar_sayisi)]
 
-        st.metric("Ortalama Throughput", f"{ortalama:.2f} parça/saat", f"±{guven_araligi:.2f} (95% GA)")
+        throughput_a = [s[0] for s in sonuclar_a]
+        throughput_b = [s[0] for s in sonuclar_b]
 
-        son_utilization = sonuclar[-1][1]
-        st.subheader("İstasyon Doluluk Oranları (%)")
-        st.bar_chart({f"İstasyon {i+1}": u * 100 for i, u in enumerate(son_utilization)})
+        ortalama_a = statistics.mean(throughput_a)
+        ortalama_b = statistics.mean(throughput_b)
 
-        en_yogun = max(range(N_ISTASYON), key=lambda i: son_utilization[i])
-        st.info(f"Darboğaz: İstasyon {en_yogun + 1} (%{son_utilization[en_yogun]*100:.1f} doluluk)")
-        
+        guven_a = 1.96 * statistics.stdev(throughput_a) / (len(throughput_a) ** 0.5) if len(throughput_a) > 1 else 0.0
+        guven_b = 1.96 * statistics.stdev(throughput_b) / (len(throughput_b) ** 0.5) if len(throughput_b) > 1 else 0.0
+
+        kol_a, kol_b = st.columns(2)
+
+        with kol_a:
+            st.subheader("Senaryo A")
+            st.metric("Ortalama Throughput", f"{ortalama_a:.2f} parça/saat", f"±{guven_a:.2f} (95% GA)")
+
+        with kol_b:
+            st.subheader("Senaryo B")
+            st.metric("Ortalama Throughput", f"{ortalama_b:.2f} parça/saat", f"±{guven_b:.2f} (95% GA)")
+
+        st.subheader("Throughput Karşılaştırması")
+        karsilastirma_df = pd.DataFrame(
+            {"Throughput (parça/saat)": [ortalama_a, ortalama_b]},
+            index=["Senaryo A", "Senaryo B"]
+        )
+        st.bar_chart(karsilastirma_df)
+
+        fark_yuzde = (ortalama_b - ortalama_a) / ortalama_a * 100
+        if fark_yuzde > 0:
+            st.success(f"Kazanan: Senaryo B — Senaryo A'ya göre **%{fark_yuzde:.1f}** daha fazla throughput sağlıyor.")
+        elif fark_yuzde < 0:
+            st.success(f"Kazanan: Senaryo A — Senaryo B'ye göre **%{abs(fark_yuzde):.1f}** daha fazla throughput sağlıyor.")
+        else:
+            st.info("İki senaryo da aynı throughput'u veriyor.")
