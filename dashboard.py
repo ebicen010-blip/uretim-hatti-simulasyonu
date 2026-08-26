@@ -6,8 +6,14 @@ import pandas as pd
 
 st.set_page_config(page_title="Uretim Hatti Simulasyonu", layout="centered")
 
+st.set_page_config(page_title="Üretim Hattı Simülasyonu", page_icon="🏭", layout="wide")
+
 st.title("Üretim Hattı Simülasyonu")
-st.write("Parametreleri soldan değiştir, simülasyonu anında yeniden çalıştır.")
+st.markdown(
+    "Beş istasyonlu bir üretim hattını simüle eder ve iki farklı senaryoyu "
+    "(tampon kapasitesi, arıza sıklığı, varış hızı) karşılaştırmanı sağlar."
+)
+st.divider()
 
 st.sidebar.header("Senaryo A")
 tampon_a = st.sidebar.slider("Tampon kapasitesi (A)", 1, 15, 5, key="tampon_a")
@@ -112,4 +118,24 @@ if st.sidebar.button("Senaryolari Karsilastir"):
         elif fark_yuzde < 0:
             st.success(f"Kazanan: Senaryo A — Senaryo B'ye göre **%{abs(fark_yuzde):.1f}** daha fazla throughput sağlıyor.")
         else:
-            st.info("İki senaryo da aynı throughput'u veriyor.")
+            st.info("İki senaryo da aynı throughput'u veriyor.")     
+        st.subheader("İstasyon Doluluk Oranları (Son Çalıştırma)")
+        son_utilization_a = sonuclar_a[-1][1]
+        son_utilization_b = sonuclar_b[-1][1]
+
+        utilization_df = pd.DataFrame(
+            {
+                "Senaryo A": [u * 100 for u in son_utilization_a],
+                "Senaryo B": [u * 100 for u in son_utilization_b],
+            },
+            index=[f"İstasyon {i+1}" for i in range(len(son_utilization_a))]
+        )
+        st.bar_chart(utilization_df, stack=False)
+        en_yogun_a = max(range(len(son_utilization_a)), key=lambda i: son_utilization_a[i])
+        en_yogun_b = max(range(len(son_utilization_b)), key=lambda i: son_utilization_b[i])
+
+        kol_a2, kol_b2 = st.columns(2)
+        with kol_a2:
+            st.info(f"Senaryo A darboğazı: İstasyon {en_yogun_a + 1} (%{son_utilization_a[en_yogun_a]*100:.1f} doluluk)")
+        with kol_b2:
+            st.info(f"Senaryo B darboğazı: İstasyon {en_yogun_b + 1} (%{son_utilization_b[en_yogun_b]*100:.1f} doluluk)")
