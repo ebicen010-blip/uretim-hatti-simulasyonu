@@ -139,3 +139,24 @@ if st.sidebar.button("Senaryolari Karsilastir"):
             st.info(f"Senaryo A darboğazı: İstasyon {en_yogun_a + 1} (%{son_utilization_a[en_yogun_a]*100:.1f} doluluk)")
         with kol_b2:
             st.info(f"Senaryo B darboğazı: İstasyon {en_yogun_b + 1} (%{son_utilization_b[en_yogun_b]*100:.1f} doluluk)")
+
+        ozet_df = pd.DataFrame({
+            "Senaryo": ["Senaryo A", "Senaryo B"],
+            "Throughput (parça/saat)": [ortalama_a, ortalama_b],
+            "Guven Araligi (95%)": [guven_a, guven_b],
+            "Istasyon 1 Doluluk (%)": [son_utilization_a[0]*100, son_utilization_b[0]*100],
+            "Istasyon 2 Doluluk (%)": [son_utilization_a[1]*100, son_utilization_b[1]*100],
+            "Istasyon 3 Doluluk (%)": [son_utilization_a[2]*100, son_utilization_b[2]*100],
+            "Istasyon 4 Doluluk (%)": [son_utilization_a[3]*100, son_utilization_b[3]*100],
+            "Istasyon 5 Doluluk (%)": [son_utilization_a[4]*100, son_utilization_b[4]*100],
+        })
+
+        st.download_button(
+            label="Sonuçları CSV olarak indir",
+            data=ozet_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="senaryo_karsilastirma_sonuclari.csv",
+            mime="text/csv"
+        )
+
+st.divider()
+st.caption("Bu uygulama SimPy ile geliştirilen bir üretim hattı simülasyonudur. Kaynak kod: github.com/ebicen010-blip/uretim-hatti-simulasyonu")
